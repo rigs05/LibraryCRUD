@@ -1,10 +1,11 @@
+const express = require('express');
 const LibModel = require('../database/LibraryModel');
 const userExist = require('../controller/userAuth');
-const router = express.router;
+const router = express.Router();
 
 
 // Create: New book entry
-router.post('/add-book', userExist, async (req, res) => {
+router.post('/add-book/:user', userExist, async (req, res) => {
     try {
         const { id, title, author, summary } = req.body;
         const bookEntryExist = await LibModel.findOne({ title: title, author: author });
@@ -35,53 +36,62 @@ router.post('/add-book', userExist, async (req, res) => {
 
 
 // Read: View the list of books
-router.get('/view-book', userExist, async (req, res) => {
+router.get('/view-book', async (req, res) => {
     try {
         // Fetching books details based on certain query parameters
         const { bookId, bookName, author } = req.query;
-        if (bookId) {
-            const book = await LibModel.findOne({ bookId: bookId });
-            const bookDetails = {
-                Book_id: bookId,
-                Name: book.title,
-                Author: book.author,
-                Summary: book.summary
-            }
-            return res.status(200).json({ message: "Book Found.", details: bookDetails });
-        }
 
-        if (bookName || author) {
-            const books = await LibModel.find({
-                $or: {
-                    title: bookName,
-                    author: author
-                }
-            });
+        // Fetch books based on certain keywords
+        if (req.query) {
+            let query = {};
+            bookQuery = new RegExp(bookName, 'i');
+            authorQuery = new RegExp(author, 'i');
+
+            // Search based on Book_ID
+            if (bookId) {
+                query = { bookId: bookId };
+            }
+
+            // Search based on keywords of Book-Name and/or Author
+            else if (bookName && author) {
+                query = { title: bookQuery, author: authorQuery }
+            }
+            else if (bookName) {
+                query = { title: bookQuery };
+            }
+            else if (author) {
+                query = { author: authorQuery };
+            }
+
+            const books = await LibModel.find(query);
+            if (books.length == 0) {
+                return res.status(200).json({ message: "No books found." });
+            }
             const bookList = books.map((book) => {
                 return {
                     Book_id: book.bookId,
-                    Name: bookName,
+                    Name: book.title,
                     Author: book.author,
                     Summary: book.summary
                 }
             })
-            return res.status(200).json({ message: "Books found.", data: bookList })
+            return res.status(200).json({ message: "Books found.", data: bookList });
         }
-        
+
         // Fetch the whole list
         else {
             const bookEntry = await LibModel.find();
             if (bookEntry.length == 0) {
                 return res.status(404).json({ message: "No books found." });
             }
-            const list = bookEntry.forEach((entry) => {
+            const list = bookEntry.map((entry) => {
                 return {
                     Book_id: entry.bookId,
                     Name: entry.title,
                     Author: entry.author,
                 }
             });
-            res.status(200).json({ message: "Books found.", data: list });
+            res.status(200).json({ message: "Books list found.", data: list });
         }
 
     } catch (err) {
@@ -92,11 +102,11 @@ router.get('/view-book', userExist, async (req, res) => {
 
 
 // Update: New book details
-router.put('/update-book', userExist, async (req, res) => {
+router.put('/update-book/:user', userExist, async (req, res) => {
     try {
         const { bookId } = req.query;
-        const { title: newTitle, author: newAuthor, summary: newSummary } = require.body;
-
+        const { title: newTitle, author: newAuthor, summary: newSummary } = req.body;
+        
         const bookExist = await LibModel.findOne({ bookId: bookId });
         if (!bookExist) {
             return res.status(400).json({ error: "Book with id: " + bookId + " was not found" });
@@ -113,7 +123,7 @@ router.put('/update-book', userExist, async (req, res) => {
         }
 
         await bookExist.save();
-        res.status(200).json({ message: "Information updated successfully." });
+        res.status(200).json({ message: "Information updated successfully.", newData: bookExist });
 
     } catch (err) {
         res.status(500).json({ message: "Internal server error." });
@@ -122,7 +132,7 @@ router.put('/update-book', userExist, async (req, res) => {
 
 
 // Delete: Removing a book by querying using bookId
-router.delete('/delete-book', userExist, async (req, res) => {
+router.delete('/delete-book/:user', userExist, async (req, res) => {
     try {
         const { bookId } = req.query;
         const bookExist = await LibModel.findOne({ bookId: bookId });
@@ -131,7 +141,7 @@ router.delete('/delete-book', userExist, async (req, res) => {
                 message: "Book with id: " + bookId + " does not exist in database."
             });
         }
-        const bookDeleted = bookExist.deleteOne();
+        const bookDeleted = await bookExist.deleteOne();
         res.status(200).json({
             message: "Book entry was deleted successfully.",
             Deleted_data: bookDeleted
