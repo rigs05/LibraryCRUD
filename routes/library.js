@@ -105,13 +105,16 @@ router.get('/view-book', async (req, res) => {
 router.put('/update-book/:user', userExist, async (req, res) => {
     try {
         const { bookId } = req.query;
-        const { title: newTitle, author: newAuthor, summary: newSummary } = req.body;
+        const { id: newId, title: newTitle, author: newAuthor, summary: newSummary } = req.body;
         
         const bookExist = await LibModel.findOne({ bookId: bookId });
         if (!bookExist) {
             return res.status(400).json({ error: "Book with id: " + bookId + " was not found" });
         }
         // Check and update certain details pushed in body
+        if (newId) {
+            bookExist.bookId = newId;
+        }
         if (newTitle) {
             bookExist.title = newTitle;
         }
