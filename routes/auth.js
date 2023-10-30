@@ -1,5 +1,6 @@
+const express = require('express');
 const UserModel = require('../database/UserModel');
-const router = express.router;
+const router = express.Router();
 const bcrypt = require('bcrypt');
 
 // Registering User

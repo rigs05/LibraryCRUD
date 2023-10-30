@@ -22,6 +22,6 @@ const LibrarySchema = new Schema({
     }
 });
 
-const LibModel = model('user', LibrarySchema);
+const LibModel = model('books', LibrarySchema);
 
 module.exports = LibModel;
